@@ -161,6 +161,8 @@ void HDF5Writer::operator()(
   hdf5_add_scalar_attr(group, "ncoll", event.ncoll());
   hdf5_add_scalar_attr(group, "mult", event.multiplicity());
   hdf5_add_scalar_attr(group, "dxy", event.dxy());
+  hdf5_add_scalar_attr(group, "Ny", grid1.shape()[0]);
+  hdf5_add_scalar_attr(group, "Nx", grid1.shape()[1]);
   for (const auto& ecc : event.eccentricity())
     hdf5_add_scalar_attr(group, "e" + std::to_string(ecc.first), ecc.second);
 }
