@@ -82,6 +82,9 @@ class Event {
   const std::map<int, double>& eccentricity() const
   { return eccentricity_; }
 
+  const std::map<int, double>& event_planes() const
+  { return psi_; }
+
   /// The reduced thickness grid as a square two-dimensional array.
   const Grid& reduced_thickness_grid() const
   { return TR_; }
@@ -153,6 +156,9 @@ class Event {
 
   /// Eccentricity harmonics.
   std::map<int, double> eccentricity_;
+
+  /// WK: Initial density event planes.
+  std::map<int, double> psi_;
 
   /// WK:
   bool with_ncoll_;
