@@ -52,7 +52,8 @@ Event::Event(const VarMap& var_map)
       TA_(boost::extents[nsteps_][nsteps_]),
       TB_(boost::extents[nsteps_][nsteps_]),
       TR_(boost::extents[nsteps_][nsteps_]),
-	  TAB_(boost::extents[nsteps_][nsteps_]) {
+	  TAB_(boost::extents[nsteps_][nsteps_]),
+      with_ncoll_(var_map["ncoll"].as<bool>()) {
   // Choose which version of the generalized mean to use based on the
   // configuration.  The possibilities are defined above.  See the header for
   // more information.

@@ -130,7 +130,9 @@ int main(int argc, char* argv[]) {
      "maximum impact parameter [fm]")
     ("random-seed",
      po::value<int64_t>()->value_name("INT")->default_value(-1, "auto"),
-     "random seed");
+     "random seed")
+    ("ncoll,b", po::bool_switch(),
+     "calculate # of binary collision and binary collision density");
 
   OptDesc grid_opts{"grid options"};
   grid_opts.add_options()

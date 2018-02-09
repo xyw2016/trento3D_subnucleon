@@ -98,6 +98,10 @@ class Event {
   void clear_TAB(void);
   void accumulate_TAB(Nucleon& A, Nucleon& B, NucleonProfile& profile);
 
+  /// WK:
+  const bool& with_ncoll() const
+  { return with_ncoll_; }
+
  private:
   /// Compute a nuclear thickness function (TA or TB) onto a grid for a given
   /// nucleus and nucleon profile.  This destroys any data previously contained
@@ -149,6 +153,9 @@ class Event {
 
   /// Eccentricity harmonics.
   std::map<int, double> eccentricity_;
+
+  /// WK:
+  bool with_ncoll_;
 };
 
 }  // namespace trento

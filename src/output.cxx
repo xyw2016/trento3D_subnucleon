@@ -33,9 +33,9 @@ void write_stream(std::ostream& os, int width,
   os << setprecision(10)
      << setw(width)            << num
      << setw(15) << fixed      << impact_param
-     << setw(5)                << event.npart()
-	 << setw(8)                << event.ncoll()
-     << setw(18) << scientific << event.multiplicity()            
+     << setw(5)                << event.npart();
+  if (event.with_ncoll()) os << setw(8)                << event.ncoll();
+  os   << setw(18) << scientific << event.multiplicity()            
      << fixed;
 
   for (const auto& ecc : event.eccentricity())
@@ -171,7 +171,7 @@ void HDF5Writer::operator()(
 
 }  // unnamed namespace
 
-Output::Output(const VarMap& var_map) {
+Output::Output(const VarMap& var_map){
   // Determine the required width (padding) of the event number.  For example if
   // there are 10 events, the numbers are 0-9 and so no padding is necessary.
   // However given 11 events, the numbers are 00-10 with padded 00, 01, ...

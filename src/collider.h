@@ -57,6 +57,9 @@ class Collider {
   /// Number of events to run.
   const int nevents_;
 
+  /// Number of trys.
+  int ntrys_;
+
   /// Minimum and maximum impact parameter.
   const double bmin_, bmax_;
 
@@ -83,6 +86,9 @@ class Collider {
 
   /// The output instance.
   Output output_;
+
+  /// Whether calculate Ncoll and nulear binary collision density
+  bool with_ncoll_;
 };
 
 }  // namespace trento
