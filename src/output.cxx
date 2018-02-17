@@ -41,8 +41,8 @@ void write_stream(std::ostream& os, int width,
   for (const auto& ecc : event.eccentricity())
     os << setw(14) << ecc.second;
 
-  for (const auto& psi : event.event_planes())
-    os << setw(14) << psi.second;
+  //for (const auto& psi : event.event_planes())
+  //  os << setw(14) << psi.second;
 
   os << '\n';
 }
@@ -171,6 +171,8 @@ void HDF5Writer::operator()(
   hdf5_add_scalar_attr(group, "Nx", grid1.shape()[1]);
   for (const auto& ecc : event.eccentricity())
     hdf5_add_scalar_attr(group, "e" + std::to_string(ecc.first), ecc.second);
+  //for (const auto& psi : event.event_planes())
+  //  hdf5_add_scalar_attr(group, "psi" + std::to_string(psi.first), psi.second);
 }
 
 #endif  // TRENTO_HDF5
