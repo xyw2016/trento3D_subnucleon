@@ -65,10 +65,15 @@ Collider::Collider(const VarMap& var_map)
       ntrys_(0),
       bmin_(var_map["b-min"].as<double>()),
       bmax_(determine_bmax(var_map, *nucleusA_, *nucleusB_, nucleon_profile_)),
+      npartmin_(var_map["npart-min"].as<int>()),
+      npartmax_(var_map["npart-max"].as<int>()),
+      stotmin_(var_map["s-min"].as<double>()),
+      stotmax_(var_map["s-max"].as<double>()),
       asymmetry_(determine_asym(*nucleusA_, *nucleusB_)),
       event_(var_map),
       output_(var_map),
-      with_ncoll_(var_map["ncoll"].as<bool>()) {
+      with_ncoll_(var_map["ncoll"].as<bool>())
+{
   // Constructor body begins here.
   // Set random seed if requested.
   auto seed = var_map["random-seed"].as<int64_t>();
@@ -84,12 +89,21 @@ void Collider::run_events() {
   for (int n = 0; n < nevents_; ++n) {
     // Sampling the impact parameter also implicitly prepares the nuclei for
     // event computation, i.e. by sampling nucleon positions and participants.
-    double b = sample_impact_param();
 
-    // Pass the prepared nuclei to the Event.  It computes the entropy profile
-    // (thickness grid) and other event observables.
-    event_.compute(*nucleusA_, *nucleusB_, nucleon_profile_);
-
+    // WK: an extra do-while loop, sample events, until it meets the Npart or 
+    // Entropy cut provided from command lines
+    bool fullfil_Npart_cut=false, fullfil_Entropy_cut=false;
+    double b;
+    do{
+    	b = sample_impact_param();
+    	// Pass the prepared nuclei to the Event.  It computes the entropy profile
+    	// (thickness grid) and other event observables.
+    	event_.compute(*nucleusA_, *nucleusB_, nucleon_profile_);
+        fullfil_Npart_cut = (npartmin_ < event_.npart()) 
+								&& (event_.npart() <= npartmax_);
+        fullfil_Entropy_cut = (stotmin_ < event_.multiplicity()) 
+								&& (event_.multiplicity() <= stotmax_); 
+	}while( (!fullfil_Npart_cut) || (!fullfil_Entropy_cut) );
     // Write event data.
     output_(n, b, event_);
   }
