@@ -40,6 +40,13 @@ class NucleonProfile {
   /// center.
   double thickness(double distance_sqr) const;
 
+  /// WK: same as above, but without the Gamma fluctuation, 
+  /// used in the calculation of binary collision density 
+  double deterministic_thickness(double distance_sqr) const;
+
+  /// WK: return Tpp given bpp^2
+  double norm_Tpp(double bpp_sqr) const;
+
   /// Randomly determine if a pair of nucleons participates.
   bool participate(Nucleon& A, Nucleon& B) const;
 
@@ -57,6 +64,12 @@ class NucleonProfile {
   /// Yes, this actually makes a speed difference...
   const double neg_one_div_two_width_sqr_;
 
+  /// WK 1/4w^2
+  const double neg_one_div_four_width_sqr_;
+
+  /// WK 1/4pi
+  const double one_div_four_pi_;
+
   /// Dimensionless parameter set to reproduce the inelastic nucleon-nucleon
   /// cross section \sigma_{NN}.  Calculated in constructor.
   const double cross_sec_param_;
@@ -69,6 +82,9 @@ class NucleonProfile {
 
   /// Thickness function prefactor = fluct/(2*pi*w^2)
   double prefactor_;
+ 
+  /// bool variable to calcualte Ncoll
+  bool with_ncoll_;
 };
 
 /// \rst
@@ -168,9 +184,24 @@ inline double NucleonProfile::thickness(double distance_sqr) const {
   return prefactor_ * fast_exp_(neg_one_div_two_width_sqr_*distance_sqr);
 }
 
+// WK
+inline double NucleonProfile::deterministic_thickness(double distance_sqr) const {
+  if (distance_sqr > trunc_radius_sqr_)
+    return 0.;
+  return math::double_constants::one_div_two_pi / width_sqr_ 
+		* fast_exp_(neg_one_div_two_width_sqr_*distance_sqr);
+}
+
+// WK
+inline double NucleonProfile::norm_Tpp(double bpp_sqr) const  {
+  return one_div_four_pi_ / width_sqr_ 
+		* fast_exp_(neg_one_div_four_width_sqr_*bpp_sqr);
+}
+
 inline bool NucleonProfile::participate(Nucleon& A, Nucleon& B) const {
-  // If both nucleons are already participants, there's nothing to do.
-  if (A.is_participant() && B.is_participant())
+  // If both nucleons are already participants, there's nothing to do, unless
+  // in Ncoll mode
+  if (A.is_participant() && B.is_participant() && (! with_ncoll_))
     return true;
 
   double dx = A.x() - B.x();

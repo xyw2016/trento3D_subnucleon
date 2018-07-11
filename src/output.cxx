@@ -34,12 +34,16 @@ void write_stream(std::ostream& os, int width,
   os << setprecision(10)
      << setw(width)            << num
      << setw(15) << fixed      << impact_param
-     << setw(5)                << event.npart()
-     << setw(18) << scientific << event.multiplicity()
+     << setw(5)                << event.npart();
+  if (event.with_ncoll()) os << setw(8)                << event.ncoll();
+  os   << setw(18) << scientific << event.multiplicity()            
      << fixed;
 
   for (const auto& ecc : event.eccentricity())
-    os << setw(14)             << ecc.second;
+    os << setw(14) << ecc.second;
+
+  //for (const auto& psi : event.event_planes())
+  //  os << setw(14) << psi.second;
 
   os << '\n';
 }
@@ -62,6 +66,9 @@ void write_text_file(const fs::path& output_dir, int width,
 
     for (const auto& ecc : event.eccentricity())
       ofs << "# e" << ecc.first << "    = " << ecc.second << '\n';
+
+    for (const auto& psi : event.event_planes())
+      ofs << "# psi" << psi.first << "    = " << psi.second << '\n';
   }
 
   // Write IC profile as a block grid.  Use C++ default float format (not
@@ -101,11 +108,18 @@ class HDF5Writer {
 };
 
 // Add a simple scalar attribute to an HDF5 dataset.
+//template <typename T>
+//void hdf5_add_scalar_attr(
+//    const H5::DataSet& dataset, const std::string& name, const T& value) {
+//  const auto& datatype = hdf5::type<T>();
+//  auto attr = dataset.createAttribute(name, datatype, H5::DataSpace{});
+//  attr.write(datatype, &value);
+//}
 template <typename T>
 void hdf5_add_scalar_attr(
-    const H5::DataSet& dataset, const std::string& name, const T& value) {
+    const H5::Group& group, const std::string& name, const T& value) {
   const auto& datatype = hdf5::type<T>();
-  auto attr = dataset.createAttribute(name, datatype, H5::DataSpace{});
+  auto attr = group.createAttribute(name, datatype, H5::DataSpace{});
   attr.write(datatype, &value);
 }
 
@@ -115,49 +129,80 @@ HDF5Writer::HDF5Writer(const fs::path& filename)
 
 void HDF5Writer::operator()(
     int num, double impact_param, const Event& event) const {
-  // Prepare arguments for new HDF5 dataset.
+  const auto& grid1 = event.density_grid();
+  const auto& grid2 = event.TAB_grid();
 
   // The dataset name is a prefix plus the event number.
-  const std::string name{"event_" + std::to_string(num)};
+  const std::string gp_name{"/event_" + std::to_string(num)};
+  const std::string sd_name{gp_name + "/matter_density"};
+  const std::string tab_name{gp_name + "/Ncoll_density"};
 
-  // Cache a reference to the event grid -- will need it several times.
-  const auto& grid = event.density_grid();
+  // create a group called event_i
+  auto group = H5::Group(file_.createGroup(gp_name));
+  // Write event attributes.
+  hdf5_add_scalar_attr(group, "b", impact_param);
+  hdf5_add_scalar_attr(group, "npart", event.npart());
+  hdf5_add_scalar_attr(group, "ncoll", event.ncoll());
+  hdf5_add_scalar_attr(group, "mult", event.multiplicity());
+  hdf5_add_scalar_attr(group, "dxy", event.dxy());
+  hdf5_add_scalar_attr(group, "deta", event.deta());
+  hdf5_add_scalar_attr(group, "Ny", grid1.shape()[0]);
+  hdf5_add_scalar_attr(group, "Nx", grid1.shape()[1]);
+  hdf5_add_scalar_attr(group, "Nz", grid1.shape()[2]);
+  for (const auto& ecc : event.eccentricity())
+    hdf5_add_scalar_attr(group, "e" + std::to_string(ecc.first), ecc.second);
+  for (const auto& psi : event.event_planes())
+    hdf5_add_scalar_attr(group, "psi" + std::to_string(psi.first), psi.second);
 
-  // Define HDF5 datatype and dataspace to match the grid.
-  const auto& datatype = hdf5::type<Event::Grid3D::element>();
-  std::array<hsize_t, Event::Grid3D::dimensionality> shape;
-  std::copy(grid.shape(), grid.shape() + shape.size(), shape.begin());
-  auto dataspace = hdf5::make_dataspace(shape);
+  ////////////////////////////////////////////////////////////////////
+  // Define HDF5 datatype and dataspace to match the density (3D) grid.
+  
+  const auto& datatype1 = hdf5::type<Event::Grid3D::element>();
+  std::array<hsize_t, Event::Grid3D::dimensionality> shape1;
+  std::copy(grid1.shape(), grid1.shape() + shape1.size(), shape1.begin());
+  auto dataspace1 = hdf5::make_dataspace(shape1);
 
   // Set dataset storage properties.
-  H5::DSetCreatPropList proplist{};
+  H5::DSetCreatPropList proplist1{};
   // Set chunk size to the entire grid.  For typical grid sizes (~100x100), this
   // works out to ~80 KiB, which is pretty optimal.  Anyway, it makes logical
   // sense to chunk this way, since chunks must be read contiguously and there's
   // no reason to read a partial grid.
-  proplist.setChunk(shape.size(), shape.data());
+  proplist1.setChunk(shape1.size(), shape1.data());
   // Set gzip compression level.  4 is the default in h5py.
-  proplist.setDeflate(4);
+  proplist1.setDeflate(4);
 
-  // Create the new dataset and write the grid.
-  auto dataset = file_.createDataSet(name, datatype, dataspace, proplist);
-  dataset.write(grid.data(), datatype);
+  // Create the new dataset and write the grid for matter density
+  auto dataset1 = file_.createDataSet(sd_name, datatype1, dataspace1, proplist1);
+  dataset1.write(grid1.data(), datatype1);
 
-  // Write event attributes.
-  hdf5_add_scalar_attr(dataset, "b", impact_param);
-  hdf5_add_scalar_attr(dataset, "npart", event.npart());
-  hdf5_add_scalar_attr(dataset, "mult", event.multiplicity());
-  hdf5_add_scalar_attr(dataset, "dxy", event.dxy());
-  hdf5_add_scalar_attr(dataset, "deta", event.deta());
-  for (const auto& ecc : event.eccentricity())
-    hdf5_add_scalar_attr(dataset, "e" + std::to_string(ecc.first), ecc.second);
+  //////////////////////////////////////////////////////////////////
+  // Define HDF5 datatype and dataspace to match the Ncoll (2D) grid.
+  const auto& datatype2 = hdf5::type<Event::Grid::element>();
+  std::array<hsize_t, Event::Grid::dimensionality> shape2;
+  std::copy(grid2.shape(), grid2.shape() + shape2.size(), shape2.begin());
+  auto dataspace2 = hdf5::make_dataspace(shape2);
+  
+  // Set dataset storage properties.
+  H5::DSetCreatPropList proplist2{};
+  // Set chunk size to the entire grid.  For typical grid sizes (~100x100), this
+  // works out to ~80 KiB, which is pretty optimal.  Anyway, it makes logical
+  // sense to chunk this way, since chunks must be read contiguously and there's
+  // no reason to read a partial grid.
+  proplist1.setChunk(shape2.size(), shape2.data());
+  // Set gzip compression level.  4 is the default in h5py.
+  proplist1.setDeflate(4);
+
+  // Create the new dataset and write the grid for matter density
+  auto dataset2 = file_.createDataSet(tab_name, datatype2, dataspace2, proplist2);
+  dataset2.write(grid2.data(), datatype2);
 }
 
 #endif  // TRENTO_HDF5
 
 }  // unnamed namespace
 
-Output::Output(const VarMap& var_map) {
+Output::Output(const VarMap& var_map){
   // Determine the required width (padding) of the event number.  For example if
   // there are 10 events, the numbers are 0-9 and so no padding is necessary.
   // However given 11 events, the numbers are 00-10 with padded 00, 01, ...

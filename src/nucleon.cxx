@@ -118,10 +118,13 @@ NucleonProfile::NucleonProfile(const VarMap& var_map)
       trunc_radius_sqr_(sqr(trunc_radius_widths)*width_sqr_),
       max_impact_sqr_(sqr(max_impact_widths)*width_sqr_),
       neg_one_div_two_width_sqr_(-.5/width_sqr_),
+	  neg_one_div_four_width_sqr_(-.25/width_sqr_),
+	  one_div_four_pi_(0.5*math::double_constants::one_div_two_pi),
       cross_sec_param_(compute_cross_sec_param(var_map)),
       fast_exp_(-.5*sqr(trunc_radius_widths), 0., 1000),
       fluct_dist_(gamma_param_unit_mean(var_map["fluctuation"].as<double>())),
-      prefactor_(math::double_constants::one_div_two_pi/width_sqr_)
+      prefactor_(math::double_constants::one_div_two_pi/width_sqr_),
+      with_ncoll_(var_map["ncoll"].as<bool>())
 {}
 
 }  // namespace trento

@@ -9,7 +9,6 @@
 #include <cmath>
 
 #include <boost/program_options/variables_map.hpp>
-
 #include "nucleus.h"
 #include <iostream>
 #include <stdexcept>
@@ -74,6 +73,8 @@ Event::Event(const VarMap& var_map)
       TA_(boost::extents[nsteps_][nsteps_]),
       TB_(boost::extents[nsteps_][nsteps_]),
       TR_(boost::extents[nsteps_][nsteps_][1]),
+	  TAB_(boost::extents[nsteps_][nsteps_]),
+      with_ncoll_(var_map["ncoll"].as<bool>()),
       density_(boost::extents[nsteps_][nsteps_][neta_]) {
   // Check if the skew parameter is within the applicable range
   // For 1: relative skew, skew_coeff_ < 10.
@@ -141,6 +142,54 @@ inline const T& clip(const T& value, const T& min, const T& max) {
 }
 
 }  // unnamed namespace
+
+// WK: clear Ncoll density table
+void Event::clear_TAB(void){
+  ncoll_ = 0;
+  for (int iy = 0; iy < nsteps_; ++iy) {
+    for (int ix = 0; ix < nsteps_; ++ix) {
+      TAB_[iy][ix] = 0.;
+    }
+  }
+}
+
+// WK: accumulate a Tpp to Ncoll density table
+void Event::accumulate_TAB(Nucleon& A, Nucleon& B, NucleonProfile& profile){
+    ncoll_ ++;
+	// the loaction of A and B nucleon
+	double xA = A.x() + xymax_, yA = A.y() + xymax_;
+	double xB = B.x() + xymax_, yB = B.y() + xymax_;
+	// impact parameter squared of this binary collision
+	double bpp_sq = std::pow(xA - xB, 2) + std::pow(yA - yB, 2);
+	// the mid point of A and B
+	double x = (xA+xB)/2.;
+    double y = (yA+yB)/2.;
+	// the max radius of Tpp 
+	const double r = profile.radius();
+	int ixmin = clip(static_cast<int>((x-r)/dxy_), 0, nsteps_-1);
+    int iymin = clip(static_cast<int>((y-r)/dxy_), 0, nsteps_-1);
+    int ixmax = clip(static_cast<int>((x+r)/dxy_), 0, nsteps_-1);
+    int iymax = clip(static_cast<int>((y+r)/dxy_), 0, nsteps_-1);
+
+    // Add Tpp to Ncoll density.
+	auto norm_Tpp = profile.norm_Tpp(bpp_sq);
+    for (auto iy = iymin; iy <= iymax; ++iy) {
+      double dysqA = std::pow(yA - (static_cast<double>(iy)+.5)*dxy_, 2);
+	  double dysqB = std::pow(yB - (static_cast<double>(iy)+.5)*dxy_, 2);
+      for (auto ix = ixmin; ix <= ixmax; ++ix) {
+        double dxsqA = std::pow(xA - (static_cast<double>(ix)+.5)*dxy_, 2);
+		double dxsqB = std::pow(xB - (static_cast<double>(ix)+.5)*dxy_, 2);
+		// The Ncoll density does not fluctuates, so we use the 
+		// deterministic_thickness function
+		// where the Gamma fluctuation are turned off.
+		// since this binary collision already happened, the binary collision
+		// density should be normalized to one.
+        TAB_[iy][ix] += profile.deterministic_thickness(dxsqA + dysqA)
+						* profile.deterministic_thickness(dxsqB + dysqB)
+						/ norm_Tpp;
+      }
+    }
+}
 
 void Event::compute_nuclear_thickness(
     const Nucleus& nucleus, NucleonProfile& profile, Grid& TX) {
@@ -240,6 +289,8 @@ void Event::compute_observables() {
     double wt = 0.;  // weight
     double finish() const  // compute final eccentricity
     { return std::sqrt(re*re + im*im) / std::fmax(wt, TINY); }
+    double angle() const  // compute event plane angle
+    { return atan2(im, re); }
   } e2, e3, e4, e5;
 
   for (int iy = 0; iy < nsteps_; ++iy) {
@@ -292,20 +343,20 @@ void Event::compute_observables() {
       // cancels the r^2 weight.  This cancellation occurs for all n.
       //
       // The Event unit test verifies that the two methods agree.
-      e2.re += t * (y2 - x2);
+      e2.re += t * (x2 - y2);
       e2.im += t * 2.*xy;
       e2.wt += t * r2;
 
-      e3.re += t * (y3 - 3.*y*x2);
-      e3.im += t * (3.*x*y2 - x3);
+      e3.re += t * (x3 - 3.*x*y2);
+      e3.im += t * y*(3. - 4.*y2);
       e3.wt += t * r2*r;
 
       e4.re += t * (x4 + y4 - 6.*x2y2);
-      e4.im += t * 4.*xy*(y2 - x2);
+      e4.im += t * 4.*xy*(1. - 2.*y2);
       e4.wt += t * r4;
 
-      e5.re += t * y*(5.*x4 - 10.*x2y2 + y4);
-      e5.im += t * x*(x4 - 10.*x2y2 + 5.*y4);
+      e5.re += t * x*(x4 - 10.*x2y2 - 5.*y4);
+      e5.im += t * y*(1. - 12.*x2 + 16.*x4);
       e5.wt += t * r4*r;
     }
   }
@@ -314,6 +365,11 @@ void Event::compute_observables() {
   eccentricity_[3] = e3.finish();
   eccentricity_[4] = e4.finish();
   eccentricity_[5] = e5.finish();
+
+  psi_[2] = e2.angle()/2.;
+  psi_[3] = e3.angle()/3.;
+  psi_[4] = e4.angle()/4.;
+  psi_[5] = e5.angle()/5.;
 }
 
 }  // namespace trento

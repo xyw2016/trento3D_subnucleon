@@ -26,7 +26,13 @@
 
 namespace trento {
 
-NucleusPtr Nucleus::create(const std::string& species, double nucleon_dmin) {
+double correct_a(double a, double w) {
+   constexpr auto c = 0.61;  // correction coefficient
+   constexpr auto a_min = 0.01;  // min. value (prevent div. by zero, etc.)
+   return std::sqrt(std::fmax(a*a - c*c*w*w, a_min*a_min));
+}
+
+NucleusPtr Nucleus::create(const std::string& species, double nucleon_width, double nucleon_dmin) {
   // W-S params ref. in header
   // XXX: remember to add new species to the help output in main() and the readme
   if (species == "p")
@@ -35,11 +41,15 @@ NucleusPtr Nucleus::create(const std::string& species, double nucleon_dmin) {
     return NucleusPtr{new Deuteron{}};
   else if (species == "Cu")
     return NucleusPtr{new WoodsSaxonNucleus{
-       62, 4.20, 0.596, nucleon_dmin
+       63, 4.20, 0.596, nucleon_dmin
     }};
   else if (species == "Cu2")
     return NucleusPtr{new DeformedWoodsSaxonNucleus{
-       62, 4.20, 0.596, 0.162, -0.006, nucleon_dmin
+       63, 4.20, 0.596, 0.162, -0.006, nucleon_dmin
+    }};
+  else if (species == "Xe")
+    return NucleusPtr{new WoodsSaxonNucleus{
+      129, 5.36, 0.590, nucleon_dmin
     }};
   else if (species == "Au")
     return NucleusPtr{new WoodsSaxonNucleus{

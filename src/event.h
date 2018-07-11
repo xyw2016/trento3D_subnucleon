@@ -16,6 +16,7 @@
 
 #include "fwd_decl.h"
 #include "rapidity_profile.h"
+#include "nucleon.h"
 
 namespace trento {
 
@@ -65,6 +66,10 @@ class Event {
   const int& npart() const
   { return npart_; }
 
+  /// WK: Number of binary collision.
+  const int& ncoll() const
+  { return ncoll_; }
+
   /// \rst
   /// Multiplicity---or more specifically, total entropy.  May be interpreted
   /// as `dS/dy` or `dS/d\eta` at midrapidity.
@@ -96,6 +101,22 @@ class Event {
 
   const double& deta() const
   { return deta_; }
+
+  const std::map<int, double>& event_planes() const
+  { return psi_; }
+
+
+  /// WK: The TAB grid for hard process vertex sampling
+  const Grid& TAB_grid() const
+  { return TAB_; }
+
+  /// WK: clear and increase TAB
+  void clear_TAB(void);
+  void accumulate_TAB(Nucleon& A, Nucleon& B, NucleonProfile& profile);
+
+  /// WK:
+  const bool& with_ncoll() const
+  { return with_ncoll_; }
 
  private:
   /// Compute a nuclear thickness function (TA or TB) onto a grid for a given
@@ -147,11 +168,11 @@ class Event {
   /// cumulant generating approach
   cumulant_generating cgf_;
 
-  /// Nuclear thickness grids TA and TB.
-  Grid TA_, TB_;
-
   /// Reduced thickness and entropy (particle) density grids
   Grid3D TR_, density_;
+
+  /// Nuclear thickness grids TA, TB and reduced thickness grid TR.
+  Grid TA_, TB_, TAB_;
 
   /// Center of mass coordinates in "units" of grid index (not fm).
   double ixcm_, iycm_;
@@ -159,11 +180,20 @@ class Event {
   /// Number of participants.
   int npart_;
 
+  /// WK: Number of binary collisions.
+  int ncoll_;
+
   /// Multiplicity (total entropy).
   double multiplicity_;
 
   /// Eccentricity harmonics.
   std::map<int, double> eccentricity_;
+
+  /// WK: Initial density event planes.
+  std::map<int, double> psi_;
+
+  /// WK:
+  bool with_ncoll_;
 };
 
 }  // namespace trento
