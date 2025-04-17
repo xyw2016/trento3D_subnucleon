@@ -66,6 +66,10 @@ class Event {
   const int& npart() const
   { return npart_; }
 
+  /// The index of the center of mass: (ix, iy)
+  const std::pair<double, double> mass_center_index() const
+  { return std::make_pair(ixcm_, iycm_); }
+
   /// WK: Number of binary collision.
   const int& ncoll() const
   { return ncoll_; }

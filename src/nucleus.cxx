@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
-
+#include <iostream>
 #include <boost/math/constants/constants.hpp>
 #ifdef TRENTO_HDF5
 // include multi_array for use with ManualNucleus
@@ -26,13 +26,13 @@
 
 namespace trento {
 
-double correct_a(double a, double w) {
-   constexpr auto c = 0.61;  // correction coefficient
-   constexpr auto a_min = 0.01;  // min. value (prevent div. by zero, etc.)
-   return std::sqrt(std::fmax(a*a - c*c*w*w, a_min*a_min));
-}
+//double correct_a(double a, double w) {
+//   constexpr auto c = 0.61;  // correction coefficient
+//   constexpr auto a_min = 0.01;  // min. value (prevent div. by zero, etc.)
+//   return std::sqrt(std::fmax(a*a - c*c*w*w, a_min*a_min));
+//}
 
-NucleusPtr Nucleus::create(const std::string& species, double nucleon_width, double nucleon_dmin) {
+NucleusPtr Nucleus::create(const std::string& species, double nucleon_dmin) {
   // W-S params ref. in header
   // XXX: remember to add new species to the help output in main() and the readme
   if (species == "p")
@@ -45,19 +45,23 @@ NucleusPtr Nucleus::create(const std::string& species, double nucleon_width, dou
     }};
   else if (species == "Cu2")
     return NucleusPtr{new DeformedWoodsSaxonNucleus{
-       63, 4.20, 0.596, 0.162, -0.006, nucleon_dmin
+       63, 4.20, 0.596, 0.162, 0.0, -0.006, nucleon_dmin
     }};
   else if (species == "Xe")
     return NucleusPtr{new WoodsSaxonNucleus{
       129, 5.36, 0.590, nucleon_dmin
     }};
+  else if (species == "Xe2")
+    return NucleusPtr{new DeformedWoodsSaxonNucleus{
+      129, 5.36, 0.590, 0.162, 0.0, -0.003, nucleon_dmin
+    }}; 
   else if (species == "Au")
     return NucleusPtr{new WoodsSaxonNucleus{
       197, 6.38, 0.535, nucleon_dmin
     }};
   else if (species == "Au2")
     return NucleusPtr{new DeformedWoodsSaxonNucleus{
-      197, 6.38, 0.535, -0.131, -0.031, nucleon_dmin
+      197, 6.38, 0.535, -0.131, 0.0, -0.031, nucleon_dmin
     }};
   else if (species == "Pb")
     return NucleusPtr{new WoodsSaxonNucleus{
@@ -65,15 +69,23 @@ NucleusPtr Nucleus::create(const std::string& species, double nucleon_width, dou
     }};
   else if (species == "U")
     return NucleusPtr{new DeformedWoodsSaxonNucleus{
-      238, 6.81, 0.600, 0.280, 0.093, nucleon_dmin
+      238, 6.81, 0.600, 0.280, 0.0, 0.093, nucleon_dmin
     }};
   else if (species == "U2")
     return NucleusPtr{new DeformedWoodsSaxonNucleus{
-      238, 6.86, 0.420, 0.265, 0.000, nucleon_dmin
+      238, 6.86, 0.420, 0.265, 0.0, 0.000, nucleon_dmin
     }};
   else if (species == "U3")
     return NucleusPtr{new DeformedWoodsSaxonNucleus{
-      238, 6.67, 0.440, 0.280, 0.093, nucleon_dmin
+      238, 6.67, 0.440, 0.280, 0.0, 0.093, nucleon_dmin
+    }};
+  else if (species == "Zr")
+    return NucleusPtr{new DeformedWoodsSaxonNucleus{
+      96, 5.02, 0.52, 0.06, 0.2, 0.0, nucleon_dmin
+    }};
+  else if (species == "Ru")
+    return NucleusPtr{new DeformedWoodsSaxonNucleus{
+      96, 5.09, 0.46, 0.162, 0.0,0.0, nucleon_dmin
     }};
   // Read nuclear configurations from HDF5.
   else if (hdf5::filename_is_hdf5(species)) {
@@ -211,7 +223,8 @@ void WoodsSaxonNucleus::sample_nucleons_impl() {
   // dramatically reduces the chance that a nucleon cannot be placed.
   std::vector<double> radii(size());
   for (auto&& r : radii)
-    r = woods_saxon_dist_(random::engine);
+  { r = woods_saxon_dist_(random::engine);
+    }
   std::sort(radii.begin(), radii.end());
 
   // Place each nucleon at a pre-sampled radius.
@@ -227,6 +240,7 @@ void WoodsSaxonNucleus::sample_nucleons_impl() {
       auto cos_theta = random::cos_theta<double>();
       auto phi = random::phi<double>();
 
+      //std::cout<<cos_theta<<","<<phi<<std::endl;
       // Convert to Cartesian coordinates.
       auto r_sin_theta = r * std::sqrt(1. - cos_theta*cos_theta);
       auto x = r_sin_theta * std::cos(phi);
@@ -252,13 +266,14 @@ void WoodsSaxonNucleus::sample_nucleons_impl() {
 // "effective" radius.  The numerical coefficients for beta2 and beta4 are the
 // approximate values of Y20 and Y40 at theta = 0.
 DeformedWoodsSaxonNucleus::DeformedWoodsSaxonNucleus(
-    std::size_t A, double R, double a, double beta2, double beta4, double dmin)
+    std::size_t A, double R, double a, double beta2, double beta3, double beta4, double dmin)
     : MinDistNucleus(A, dmin),
       R_(R),
       a_(a),
       beta2_(beta2),
+      beta3_(beta3),
       beta4_(beta4),
-      rmax_(R*(1. + .63*std::fabs(beta2) + .85*std::fabs(beta4)) + 10.*a)
+      rmax_(R*(1. + .63*std::fabs(beta2)  + .75*std::fabs(beta3) + .85*std::fabs(beta4)) + 10.*a)
 {}
 
 /// Return something a bit smaller than the true maximum radius.  The
@@ -276,11 +291,15 @@ double DeformedWoodsSaxonNucleus::deformed_woods_saxon_dist(
   // spherical harmonics
   using math::double_constants::one_div_root_pi;
   auto Y20 = std::sqrt(5)/4. * one_div_root_pi * (3.*cos_theta_sq - 1.);
+  
   auto Y40 = 3./16. * one_div_root_pi *
              (35.*cos_theta_sq*cos_theta_sq - 30.*cos_theta_sq + 3.);
 
+  auto Y30 = std::sqrt(7.)/4.*one_div_root_pi * (5.*cos_theta_sq - 3.)*cos_theta;
+
+
   // "effective" radius
-  auto Reff = R_ * (1. + beta2_*Y20 + beta4_*Y40);
+  auto Reff = R_ * (1. + beta2_*Y20 + beta3_*Y30+ beta4_*Y40);
 
   return 1. / (1. + std::exp((r - Reff) / a_));
 }

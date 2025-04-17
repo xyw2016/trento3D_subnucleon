@@ -26,8 +26,7 @@ NucleusPtr create_nucleus(const VarMap& var_map, std::size_t index) {
   const auto& species = var_map["projectile"]
                         .as<std::vector<std::string>>().at(index);
   const auto& nucleon_dmin = var_map["nucleon-min-dist"].as<double>();
-  const auto& nucleon_width = var_map["nucleon-width"].as<double>();
-  return Nucleus::create(species, nucleon_width, nucleon_dmin);
+  return Nucleus::create(species, nucleon_dmin);
 }
 
 // Determine the maximum impact parameter.  If the configuration contains a
@@ -63,6 +62,7 @@ Collider::Collider(const VarMap& var_map)
       nucleusB_(create_nucleus(var_map, 1)),
       nucleon_profile_(var_map),
       nevents_(var_map["number-events"].as<int>()),
+      with_ncoll_(var_map["ncoll"].as<bool>()),
       ntrys_(0),
       bmin_(var_map["b-min"].as<double>()),
       bmax_(determine_bmax(var_map, *nucleusA_, *nucleusB_, nucleon_profile_)),
@@ -72,8 +72,7 @@ Collider::Collider(const VarMap& var_map)
       stotmax_(var_map["s-max"].as<double>()),
       asymmetry_(determine_asym(*nucleusA_, *nucleusB_)),
       event_(var_map),
-      output_(var_map),
-      with_ncoll_(var_map["ncoll"].as<bool>())
+      output_(var_map)
 {
   // Constructor body begins here.
   // Set random seed if requested.
@@ -93,6 +92,7 @@ void Collider::run_events() {
 
     // WK: an extra do-while loop, sample events, until it meets the Npart or 
     // Entropy cut provided from command lines
+    std::cout<<"Event "<< n << ", "<< n*1.0/nevents_ <<std::endl;
     bool fullfil_Npart_cut=false, fullfil_Entropy_cut=false;
     double b;
     do{
@@ -108,8 +108,8 @@ void Collider::run_events() {
     // Write event data.
     output_(n, b, event_);
   }
-  double cross_section = nevents_*M_PI*(bmax_*bmax_ - bmin_*bmin_)/ntrys_;
-  double cross_section_err = cross_section/std::sqrt(1.*nevents_);
+  //double cross_section = nevents_*M_PI*(bmax_*bmax_ - bmin_*bmin_)/ntrys_;
+  //double cross_section_err = cross_section/std::sqrt(1.*nevents_);
   //std::cout << "# cross-section = " << cross_section
   //			<< " +/- " << cross_section_err <<" [fm^2]" << std::endl; 
 }
@@ -124,7 +124,6 @@ double Collider::sample_impact_param() {
   do {
     // Sample b from P(b)db = 2*pi*b.
     b = bmin_ + (bmax_ - bmin_) * std::sqrt(random::canonical<double>());
-
     // Offset each nucleus depending on the asymmetry parameter (see header).
     nucleusA_->sample_nucleons(asymmetry_ * b);
     nucleusB_->sample_nucleons((asymmetry_ - 1.) * b);
@@ -142,12 +141,14 @@ double Collider::sample_impact_param() {
 			// it calls the event object to accumulate Tpp to the Ncoll density
 			// Ncoll density = Sum Tpp		
 			if (AB_collide) event_.accumulate_TAB(A, B, nucleon_profile_);
+            if (AB_collide) {std::cout << ( A.x() + B.x() ) / 2.0 <<", "<< ( A.y() + B.y() )/2.0 << std::endl;}
 		}
 
 		// update collision flag
         collision = AB_collide || collision;
       }
     }
+    if (with_ncoll_ && collision) {std::cout << "#" << std::endl;}
     ntrys_ ++;
   } while (!collision);
 

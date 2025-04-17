@@ -59,7 +59,7 @@ class Nucleus {
   /// \return a smart pointer \c std::unique_ptr<Nucleus>
   ///
   /// \throw std::invalid_argument for unknown species
-  static NucleusPtr create(const std::string& species, double nucleon_width, double nucleon_dmin = 0);
+  static NucleusPtr create(const std::string& species, double nucleon_dmin = 0);
 
   /// Default virtual destructor for abstract base class.
   virtual ~Nucleus() = default;
@@ -110,7 +110,7 @@ class Nucleus {
   /// positions; the derived classes must use this function to set positions.
   /// \endrst
   void set_nucleon_position(iterator nucleon, double x, double y, double z);
-
+  /// *********************************zj
  private:
   /// Internal interface to the actual implementation of the nucleon sampling
   /// algorithm, used in public function sample_nucleons().  This function must
@@ -236,7 +236,7 @@ class WoodsSaxonNucleus : public MinDistNucleus {
 /// .. math::
 ///
 ///   f(r, \theta) \propto
-///   \frac{1}{1 + \exp(\frac{r-R(1+\beta_2Y_{20}+\beta_4Y_{40})}{a})}.
+///   \frac{1}{1 + \exp(\frac{r-R(1+\beta_2Y_{20}+\beta_3Y_{30}+\beta_4Y_{40})}{a})}.
 ///
 /// For deformed heavy nuclei such as uranium.
 ///
@@ -248,13 +248,14 @@ class DeformedWoodsSaxonNucleus : public MinDistNucleus {
   /// \param R Woods-Saxon radius
   /// \param a Woods-Saxon surface thickness
   /// \param beta2 Woods-Saxon deformation parameter
+  /// \param beta3 Woods-Saxon deformation parameter
   /// \param beta4 Woods-Saxon deformation parameter
   /// \param dmin minimum nucleon-nucleon distance (optional, default zero)
   DeformedWoodsSaxonNucleus(std::size_t A, double R, double a,
-                            double beta2, double beta4, double dmin = 0);
+                            double beta2, double beta3, double beta4, double dmin = 0);
 
   /// The radius of a deformed Woods-Saxon Nucleus is computed from the
-  /// parameters (R, a, beta2, beta4).
+  /// parameters (R, a, beta2, beta3, beta4).
   virtual double radius() const override;
 
  private:
@@ -265,7 +266,7 @@ class DeformedWoodsSaxonNucleus : public MinDistNucleus {
   double deformed_woods_saxon_dist(double r, double cos_theta) const;
 
   /// Woods-Saxon parameters.
-  const double R_, a_, beta2_, beta4_;
+  const double R_, a_, beta2_ ,beta3_ , beta4_;
 
   /// Maximum radius.
   const double rmax_;

@@ -34,7 +34,7 @@ void write_stream(std::ostream& os, int width,
   os << setprecision(10)
      << setw(width)            << num
      << setw(15) << fixed      << impact_param
-     << setw(5)                << event.npart();
+     << setw(10)                << event.npart();
   if (event.with_ncoll()) os << setw(8)                << event.ncoll();
   os   << setw(18) << scientific << event.multiplicity()            
      << fixed;
@@ -42,8 +42,8 @@ void write_stream(std::ostream& os, int width,
   for (const auto& ecc : event.eccentricity())
     os << setw(14) << ecc.second;
 
-  //for (const auto& psi : event.event_planes())
-  //  os << setw(14) << psi.second;
+  for (const auto& psi : event.event_planes())
+    os << setw(14) << psi.second;
 
   os << '\n';
 }
@@ -69,6 +69,9 @@ void write_text_file(const fs::path& output_dir, int width,
 
     for (const auto& psi : event.event_planes())
       ofs << "# psi" << psi.first << "    = " << psi.second << '\n';
+
+    ofs << "# ixcm=" << event.mass_center_index().first;
+    ofs << "  iycm=" << event.mass_center_index().second << '\n';
   }
 
   // Write IC profile as a block grid.  Use C++ default float format (not
@@ -83,10 +86,10 @@ void write_text_file(const fs::path& output_dir, int width,
   for (const auto& slice : event.density_grid()) {
     for (const auto& row : slice) {
       for (const auto& item : row) {
-		 ofs << item << " ";
-	  }
-	  if (is3d) ofs << std::endl;
-    }
+		      ofs << item << " ";
+	        }
+	            if (is3d) ofs << std::endl;
+          }
 	if (!is3d) ofs << std::endl;
   }
 }
@@ -154,6 +157,11 @@ void HDF5Writer::operator()(
   for (const auto& psi : event.event_planes())
     hdf5_add_scalar_attr(group, "psi" + std::to_string(psi.first), psi.second);
 
+  hdf5_add_scalar_attr(group, "ixcm", event.mass_center_index().first);
+  hdf5_add_scalar_attr(group, "iycm", event.mass_center_index().second);
+
+
+
   ////////////////////////////////////////////////////////////////////
   // Define HDF5 datatype and dataspace to match the density (3D) grid.
   
@@ -178,24 +186,24 @@ void HDF5Writer::operator()(
 
   //////////////////////////////////////////////////////////////////
   // Define HDF5 datatype and dataspace to match the Ncoll (2D) grid.
-  const auto& datatype2 = hdf5::type<Event::Grid::element>();
-  std::array<hsize_t, Event::Grid::dimensionality> shape2;
-  std::copy(grid2.shape(), grid2.shape() + shape2.size(), shape2.begin());
-  auto dataspace2 = hdf5::make_dataspace(shape2);
-  
-  // Set dataset storage properties.
-  H5::DSetCreatPropList proplist2{};
-  // Set chunk size to the entire grid.  For typical grid sizes (~100x100), this
-  // works out to ~80 KiB, which is pretty optimal.  Anyway, it makes logical
-  // sense to chunk this way, since chunks must be read contiguously and there's
-  // no reason to read a partial grid.
-  proplist1.setChunk(shape2.size(), shape2.data());
-  // Set gzip compression level.  4 is the default in h5py.
-  proplist1.setDeflate(4);
+  //const auto& datatype2 = hdf5::type<Event::Grid::element>();
+  //std::array<hsize_t, Event::Grid::dimensionality> shape2;
+  //std::copy(grid2.shape(), grid2.shape() + shape2.size(), shape2.begin());
+  //auto dataspace2 = hdf5::make_dataspace(shape2);
+  //
+  //// Set dataset storage properties.
+  //H5::DSetCreatPropList proplist2{};
+  //// Set chunk size to the entire grid.  For typical grid sizes (~100x100), this
+  //// works out to ~80 KiB, which is pretty optimal.  Anyway, it makes logical
+  //// sense to chunk this way, since chunks must be read contiguously and there's
+  //// no reason to read a partial grid.
+  //proplist1.setChunk(shape2.size(), shape2.data());
+  //// Set gzip compression level.  4 is the default in h5py.
+  //proplist1.setDeflate(4);
 
-  // Create the new dataset and write the grid for matter density
-  auto dataset2 = file_.createDataSet(tab_name, datatype2, dataspace2, proplist2);
-  dataset2.write(grid2.data(), datatype2);
+  //// Create the new dataset and write the grid for matter density
+  //auto dataset2 = file_.createDataSet(tab_name, datatype2, dataspace2, proplist2);
+  //dataset2.write(grid2.data(), datatype2);
 }
 
 #endif  // TRENTO_HDF5

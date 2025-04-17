@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4)
-project(trento VERSION 1.5.1 LANGUAGES CXX)
+project(trento3d VERSION 1.5.1 LANGUAGES CXX)
 
 # require C++11
 set(CMAKE_CXX_STANDARD 11)
@@ -124,7 +124,7 @@ if(NATIVE)
     # All other compilers (gcc-like): search for -m flags;
     # if not found add -march=native.
     if(NOT CMAKE_CXX_FLAGS MATCHES "(^| )-m[^ ]+")
-      string(APPEND CMAKE_CXX_FLAGS " -march=native")
+	    #  string(APPEND CMAKE_CXX_FLAGS " -march=native")
     endif()
   endif()
 endif()

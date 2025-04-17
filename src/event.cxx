@@ -70,33 +70,35 @@ Event::Event(const VarMap& var_map)
       etamax_(var_map["eta-max"].as<double>()),
       eta2y_(var_map["jacobian"].as<double>(), etamax_, deta_),
       cgf_(),
+      TR_(boost::extents[nsteps_][nsteps_][1]),
+      density_(boost::extents[nsteps_][nsteps_][neta_]),
       TA_(boost::extents[nsteps_][nsteps_]),
       TB_(boost::extents[nsteps_][nsteps_]),
-      TR_(boost::extents[nsteps_][nsteps_][1]),
-	  TAB_(boost::extents[nsteps_][nsteps_]),
-      with_ncoll_(var_map["ncoll"].as<bool>()),
-      density_(boost::extents[nsteps_][nsteps_][neta_]) {
-  // Check if the skew parameter is within the applicable range
-  // For 1: relative skew, skew_coeff_ < 10.
-  //	 2: absolute skew, skew_coeff_ < 3.
-  try {
-  	if ((skew_type_ == 1 && skew_coeff_ > 10.) || 
-	  (skew_type_ == 2 && skew_coeff_ > 3.) ){
-      auto info = std::string("Error: skew coefficent too large to be stable.\n")
-				+ std::string("Requirements: (1) relative skew, skew_coeff < 10\n")
-				+ std::string("              (2) absolute skew, skew_coeff < 3");
-      throw std::invalid_argument(info);
-	}
-  }
-  catch (const std::invalid_argument& error){
-    std::cerr << error.what() << std::endl;
-    exit(1);
-  }
+      TAB_(boost::extents[nsteps_][nsteps_]),
+      with_ncoll_(var_map["ncoll"].as<bool>()){
+
+    // Check if the skew parameter is within the applicable range
+    // For 1: relative skew, skew_coeff_ < 10.
+    //	 2: absolute skew, skew_coeff_ < 3.
+    try {
+      if ((skew_type_ == 1 && skew_coeff_ > 10.) || 
+      (skew_type_ == 2 && skew_coeff_ > 3.) ){
+        auto info = std::string("Error: skew coefficent too large to be stable.\n")
+          + std::string("Requirements: (1) relative skew, skew_coeff < 10\n")
+          + std::string("              (2) absolute skew, skew_coeff < 3");
+        throw std::invalid_argument(info);
+    }
+    }
+    catch (const std::invalid_argument& error){
+      std::cerr << error.what() << std::endl;
+      exit(1);
+    }
 
   // Choose which version of the generalized mean to use based on the
   // configuration. The possibilities are defined above.  See the header for
   // more information.
   auto p = var_map["reduced-thickness"].as<double>();
+
   if (std::fabs(p) < TINY) {
     compute_reduced_thickness_ = [this]() {
       compute_reduced_thickness(geometric_mean);
@@ -203,7 +205,7 @@ void Event::compute_nuclear_thickness(
   // Wipe grid with zeros.
   std::fill(TX.origin(), TX.origin() + TX.num_elements(), 0.);
 
-  const double r = profile.radius();
+  //const double r = profile.radius();
 
   // Deposit each participant onto the grid.
   for (const auto& nucleon : nucleus) {
@@ -212,29 +214,30 @@ void Event::compute_nuclear_thickness(
 
     ++npart_;
 
-    // Work in coordinates relative to (-width/2, -width/2).
-    double x = nucleon.x() + xymax_;
-    double y = nucleon.y() + xymax_;
+    // Get nucleon subgrid boundary {xmin, xmax, ymin, ymax}.
+    const auto boundary = profile.boundary(nucleon);
 
     // Determine min & max indices of nucleon subgrid.
-    int ixmin = clip(static_cast<int>((x-r)/dxy_), 0, nsteps_-1);
-    int iymin = clip(static_cast<int>((y-r)/dxy_), 0, nsteps_-1);
-    int ixmax = clip(static_cast<int>((x+r)/dxy_), 0, nsteps_-1);
-    int iymax = clip(static_cast<int>((y+r)/dxy_), 0, nsteps_-1);
-
-    // Prepare profile for new nucleon.
-    profile.fluctuate();
+    int ixmin = clip(static_cast<int>((boundary[0]+xymax_)/dxy_), 0, nsteps_-1);
+    int ixmax = clip(static_cast<int>((boundary[1]+xymax_)/dxy_), 0, nsteps_-1);
+    int iymin = clip(static_cast<int>((boundary[2]+xymax_)/dxy_), 0, nsteps_-1);
+    int iymax = clip(static_cast<int>((boundary[3]+xymax_)/dxy_), 0, nsteps_-1);
+    
+    // Prepare profile for new nucleon. //zjtest
+    //profile.fluctuate();
 
     // Add profile to grid.
     for (auto iy = iymin; iy <= iymax; ++iy) {
-      double dysq = std::pow(y - (static_cast<double>(iy)+.5)*dxy_, 2);
       for (auto ix = ixmin; ix <= ixmax; ++ix) {
-        double dxsq = std::pow(x - (static_cast<double>(ix)+.5)*dxy_, 2);
-        TX[iy][ix] += profile.thickness(dxsq + dysq);
+        TX[iy][ix] += profile.thickness(
+          nucleon, (ix+.5)*dxy_ - xymax_, (iy+.5)*dxy_ - xymax_
+        );
       }
     }
+
   }
 }
+
 
 template <typename GenMean>
 void Event::compute_reduced_thickness(GenMean gen_mean) {
@@ -343,20 +346,20 @@ void Event::compute_observables() {
       // cancels the r^2 weight.  This cancellation occurs for all n.
       //
       // The Event unit test verifies that the two methods agree.
-      e2.re += t * (x2 - y2);
+      e2.re += t * (y2 - x2);
       e2.im += t * 2.*xy;
       e2.wt += t * r2;
 
-      e3.re += t * (x3 - 3.*x*y2);
-      e3.im += t * y*(3. - 4.*y2);
+      e3.re += t * (y3 - 3.*y*x2);
+      e3.im += t * (3.*x*y2 - x3);
       e3.wt += t * r2*r;
 
       e4.re += t * (x4 + y4 - 6.*x2y2);
-      e4.im += t * 4.*xy*(1. - 2.*y2);
+      e4.im += t * 4.*xy*(y2 - x2);
       e4.wt += t * r4;
 
-      e5.re += t * x*(x4 - 10.*x2y2 - 5.*y4);
-      e5.im += t * y*(1. - 12.*x2 + 16.*x4);
+      e5.re += t * y*(5.*x4 - 10.*x2y2 + y4);
+      e5.im += t * x*(x4 - 10.*x2y2 + 5.*y4);
       e5.wt += t * r4*r;
     }
   }

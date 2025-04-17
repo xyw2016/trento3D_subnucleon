@@ -58,6 +58,9 @@ class Collider {
   /// Number of events to run.
   const int nevents_;
 
+  /// Calculate binary collisions if true
+  const bool with_ncoll_;
+
   /// Number of trys.
   int ntrys_;
 
@@ -93,9 +96,6 @@ class Collider {
 
   /// The output instance.
   Output output_;
-
-  /// Whether calculate Ncoll and nulear binary collision density
-  bool with_ncoll_;
 };
 
 }  // namespace trento
