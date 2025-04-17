@@ -141,7 +141,7 @@ double Collider::sample_impact_param() {
 			// it calls the event object to accumulate Tpp to the Ncoll density
 			// Ncoll density = Sum Tpp		
 			if (AB_collide) event_.accumulate_TAB(A, B, nucleon_profile_);
-            if (AB_collide) {std::cout << ( A.x() + B.x() ) / 2.0 <<", "<< ( A.y() + B.y() )/2.0 << std::endl;}
+            //if (AB_collide) {std::cout << ( A.x() + B.x() ) / 2.0 <<", "<< ( A.y() + B.y() )/2.0 << std::endl;}
 		}
 
 		// update collision flag

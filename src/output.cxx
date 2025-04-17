@@ -94,6 +94,46 @@ void write_text_file(const fs::path& output_dir, int width,
   }
 }
 
+void write_text_file_TAB(const fs::path& output_dir, int width,
+    int num, double impact_param, const Event& event, bool header) {
+  // Open a numbered file in the output directory.
+  // Pad the filename with zeros.
+  std::ostringstream padded_fname{};
+  padded_fname << std::setw(width) << std::setfill('0') << num << "_TAB.dat";
+  fs::ofstream ofs{output_dir / padded_fname.str()};
+
+  if (header) {
+    // Write a commented header of event properties as key = value pairs.
+    ofs << std::setprecision(10)
+        << "# event "   << num                  << '\n'
+        << "# b     = " << impact_param         << '\n'
+        << "# npart = " << event.npart()        << '\n'
+        << "# mult  = " << event.multiplicity() << '\n';
+
+    for (const auto& ecc : event.eccentricity())
+      ofs << "# e" << ecc.first << "    = " << ecc.second << '\n';
+
+    for (const auto& psi : event.event_planes())
+      ofs << "# psi" << psi.first << "    = " << psi.second << '\n';
+  }
+
+  // Write IC profile as a block grid.  Use C++ default float format (not
+  // fixed-width) so that trailing zeros are omitted.  This significantly
+  // increases output speed and saves disk space since many grid elements are
+  // zero.
+
+
+  for (const auto& slice : event.TAB_grid()) {
+    for (const auto& item : slice) {
+		 ofs << item << " ";
+    }
+     ofs << std::endl;
+  }
+  
+
+
+
+}
 #ifdef TRENTO_HDF5
 
 /// Simple functor to write many events to an HDF5 file.
@@ -256,6 +296,7 @@ Output::Output(const VarMap& var_map){
         [output_path, width, header](
             int num, double impact_param, const Event& event) {
           write_text_file(output_path, width, num, impact_param, event, header);
+          write_text_file_TAB(output_path, width, num, impact_param, event, header);
         }
       );
     }
