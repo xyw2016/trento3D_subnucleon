@@ -226,24 +226,24 @@ void HDF5Writer::operator()(
 
   //////////////////////////////////////////////////////////////////
   // Define HDF5 datatype and dataspace to match the Ncoll (2D) grid.
-  //const auto& datatype2 = hdf5::type<Event::Grid::element>();
-  //std::array<hsize_t, Event::Grid::dimensionality> shape2;
-  //std::copy(grid2.shape(), grid2.shape() + shape2.size(), shape2.begin());
-  //auto dataspace2 = hdf5::make_dataspace(shape2);
-  //
-  //// Set dataset storage properties.
-  //H5::DSetCreatPropList proplist2{};
-  //// Set chunk size to the entire grid.  For typical grid sizes (~100x100), this
-  //// works out to ~80 KiB, which is pretty optimal.  Anyway, it makes logical
-  //// sense to chunk this way, since chunks must be read contiguously and there's
-  //// no reason to read a partial grid.
-  //proplist1.setChunk(shape2.size(), shape2.data());
-  //// Set gzip compression level.  4 is the default in h5py.
-  //proplist1.setDeflate(4);
+  const auto& datatype2 = hdf5::type<Event::Grid::element>();
+  std::array<hsize_t, Event::Grid::dimensionality> shape2;
+  std::copy(grid2.shape(), grid2.shape() + shape2.size(), shape2.begin());
+  auto dataspace2 = hdf5::make_dataspace(shape2);
+  
+  // Set dataset storage properties.
+  H5::DSetCreatPropList proplist2{};
+  // Set chunk size to the entire grid.  For typical grid sizes (~100x100), this
+  // works out to ~80 KiB, which is pretty optimal.  Anyway, it makes logical
+  // sense to chunk this way, since chunks must be read contiguously and there's
+  // no reason to read a partial grid.
+  proplist1.setChunk(shape2.size(), shape2.data());
+  // Set gzip compression level.  4 is the default in h5py.
+  proplist1.setDeflate(4);
 
-  //// Create the new dataset and write the grid for matter density
-  //auto dataset2 = file_.createDataSet(tab_name, datatype2, dataspace2, proplist2);
-  //dataset2.write(grid2.data(), datatype2);
+  // Create the new dataset and write the grid for matter density
+  auto dataset2 = file_.createDataSet(tab_name, datatype2, dataspace2, proplist2);
+  dataset2.write(grid2.data(), datatype2);
 }
 
 #endif  // TRENTO_HDF5
