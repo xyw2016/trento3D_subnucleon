@@ -292,14 +292,18 @@ inline double NucleonProfile::thickness(
 inline double NucleonProfile::deterministic_thickness(double distance_sqr) const {
   if (distance_sqr > trunc_radius_sqr_)
     return 0.;
+  //return math::double_constants::one_div_two_pi / width_sqr_ 
+//		* fast_exp_(neg_one_div_two_width_sqr_*distance_sqr);
   return math::double_constants::one_div_two_pi / width_sqr_ 
-		* fast_exp_(neg_one_div_two_width_sqr_*distance_sqr);
+		* exp(neg_one_div_two_width_sqr_*distance_sqr);
 }
 
 // WK/zzzj need to figure out
 inline double NucleonProfile::norm_Tpp(double bpp_sqr) const  {
+  //return one_div_four_pi_ / width_sqr_ 
+  //		* fast_exp_(neg_one_div_four_width_sqr_*bpp_sqr);
   return one_div_four_pi_ / width_sqr_ 
-		* fast_exp_(neg_one_div_four_width_sqr_*bpp_sqr);
+		* exp(neg_one_div_four_width_sqr_*bpp_sqr);
 }
 
 inline bool NucleonProfile::participate(Nucleon& A, Nucleon& B) const {
